@@ -5,7 +5,15 @@ import { Prisma } from "../../prisma/generated/client";
 
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+
+  if (!authHeader) {
+    return res.status(401).json({
+      status: "error",
+      message: "Authorization header is required",
+    });
+  }
+
+  if (!authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ 
       status: "error", 
       message: "Authorization header must be in format: Bearer <token>"

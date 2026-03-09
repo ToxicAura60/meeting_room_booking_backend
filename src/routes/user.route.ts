@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { listUserBookings } from "../controllers/booking.controller";
+import { listUserBookings } from "../controllers/user.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 import { body } from "express-validator";
 import { prisma } from "../lib/prisma";

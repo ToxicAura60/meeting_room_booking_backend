@@ -12,6 +12,9 @@ enum UserRole {
   ADMIN
 }
 
+model Table {
+
+}
 model User {
   id Int @id @default(autoincrement())
   firstName String @unique

@@ -8,13 +8,40 @@ import { Prisma } from "../../prisma/generated/client";
 export const register = async (req: Request, res: Response) => {
   const { email, password, first_name, last_name } = req.body;
 
+  let existingUser: Prisma.UserGetPayload<{
+    select: {
+      id: true;
+    };
+  }> | null = null
+  try {
+    existingUser = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+  } catch (error) {
+    return res.status(500).json({ 
+      status: "error",
+      code: "DB_QUERY_FAILED",
+      message: "An unexpected error occured",
+    });
+  }
+ 
+  if (existingUser) {
+    return res.status(409).json({
+      status: "error",
+      code: "AUTH_EMAIL_ALREADY_EXIST",
+      message: "Email is already in use"
+    });
+  }
+
   let hashedPassword: string;
   try {
     hashedPassword = await bcrypt.hash(password, 10);
   } catch(err) {
     return res.status(500).json({
       status: "error",
-      message: "Failed to hash password."
+      code: "AUTH_PASSWORD_HASH_FAILED",
+      message: "An unexpected error occurred"
     });
   }
 
@@ -30,12 +57,14 @@ export const register = async (req: Request, res: Response) => {
   } catch(error) {
     return res.status(500).json({ 
       status: "error",
-      message: "Failed to create new user."
+      code: "DB_CREATE_FAILED",
+      message: "An unexpected error occured"
     });
   }
 
   return res.status(201).json({
     status: "success",
+    code: "AUTH_USER_REGISTERED",
     message: "User registered successfully",
   });
 }
@@ -65,15 +94,17 @@ export const login = async (req: Request, res: Response) => {
     });
   } catch(err) {
     return res.status(500).json({ 
-      status: "error", 
-      message: "Failed to query the database",
+      status: "error",
+      code: "DB_QUERY_FAILED",
+      message: "An unexpected error occured",
     });
   }
 
   if (!user) {
     return res.status(400).json({ 
       status: "error", 
-      message: "Invalid email or password"
+      code: "AUTH_INVALID_CREDENTIALS",
+      message: "Invalid email or password",
     });
   }
 
@@ -82,14 +113,16 @@ export const login = async (req: Request, res: Response) => {
     isValid = await bcrypt.compare(password, user.password);
   } catch (err) {
     return res.status(500).json({ 
-      status: "error", 
-      message: "Failed to validate password" 
+      status: "error",
+      code: "AUTH_PASSWORD_COMPARE_FAILED",
+      message: "An unexpected error occured",
     });
   }
 
   if (!isValid) {
     return res.status(400).json({ 
       status: "error", 
+      code: "AUTH_INVALID_CREDENTIALS",
       message: "Invalid email or password"
     });
   }
@@ -118,14 +151,16 @@ export const login = async (req: Request, res: Response) => {
       data: { refreshToken },
     });
   } catch (error) {
-    return res.status(500).json({ 
+    return res.status(500).json({
       status: "error", 
-      message: "Failed to update user"
+      code: "DB_UPDATE_FAILED",
+      message: "An unexpected error occured"
     })
   }
  
   return res.json({
-    status: "success", 
+    status: "success",
+    coce: "AUTH_LOGIN_SUCCESS",
     message: "Login successful",
     access_token: accessToken,
     refresh_token: refreshToken
@@ -141,6 +176,7 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
   } catch (err) {
     return res.status(401).json({
       status: "error", 
+      code: "AUTH_REFRESH_TOKEN_INVALID_OR_EXPIRED",
       message: "Invalid or expired refresh token"
     })
   }
@@ -168,14 +204,16 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
   } catch (error) {
     return res.status(500).json({
       status: "error", 
-      message: "Failed to get user"
+      code: "DB_QUERY_FAILED",
+      message: "An unexpected error occured"
     })
   }
 
   if (!user || user.refreshToken !== refresh_token) {
     return res.status(401).json({ 
       status: "error", 
-      message: "Refresh token revoked" 
+      code: "AUTH_REFRESH_TOKEN_REVOKED",
+      message: "Refresh token has been revoked" 
     });
   }
 
@@ -190,5 +228,9 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
     { expiresIn: "15m" }
   );
 
-  return res.json({ status: "success", accessToken });
+  return res.json({ 
+    status: "success",
+    code: "AUTH_ACCESS_TOKEN_REFRESHED",
+    accessToken 
+  });
 }

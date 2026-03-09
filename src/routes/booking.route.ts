@@ -3,7 +3,6 @@ import { createBooking, deleteBooking, listBookings, updateBooking } from "../co
 import { requireAuth } from "../middleware/auth.middleware";
 import { body, param } from "express-validator";
 import { validateRequest } from "..//middleware/validate.middleware";
-import { prisma } from "../lib/prisma";
 
 const router = Router();
 
@@ -12,44 +11,58 @@ router.post(
   requireAuth,
   [
     body("name")
-      .notEmpty().withMessage("name is required")
-      .isString().withMessage("name must be a string"),
+      .notEmpty().withMessage({
+        code: "FIELD_REQUIRED",
+        message: "name is required"
+      })
+      .isString().withMessage({
+        code: "FIELD_NOT_STRING",
+        message: "name must be a string"
+      }),
 
     body("meeting_room_id")
-      .notEmpty().withMessage("meeting_room_id is required")
-      .isInt({ min: 1 }).withMessage("meeting_room_id must be a valid integer")
-      .bail()
-      .custom(async (meetingRoomId) => {
-        const room = await prisma.meetingRoom.findUnique({
-          where: { id: Number(meetingRoomId) },
-          select: { id: true },
-        });
-
-        if (!room) {
-          throw new Error("Meeting room not found");
-        }
-
-        return true;
+      .notEmpty().withMessage({
+        code: "FIELD_REQUIRED",
+        message: "meeting_room_id is required"
+      })
+      .isInt({ min: 1 }).withMessage({
+        code: "FIELD_NOT_INTEGER",
+        message: "Meeting room ID must be a valid integer"
       }),
 
     body("start_time")
-      .notEmpty().withMessage("start_time is required")
-      .isISO8601().withMessage("start_time must be a string"),
+      .notEmpty().withMessage({
+        code: "FIELD_REQUIRED",
+        message: "Start time is required"
+      })
+      .isISO8601().withMessage({
+        code: "FIELD_INVALID_FORMAT",
+        message: "Start time must be a valid ISO 8601 date"
+      }),
 
     body("end_time")
-      .notEmpty().withMessage("end_time is required")
-      .isISO8601().withMessage("end_time must be a string")
-      .custom((value, { req }) => {
-        if (req.body.start_time && new Date(value) <= new Date(req.body.start_time)) {
-          throw new Error("end_time must be greater than start_time");
-        }
-        return true;
-      }), 
+      .notEmpty().withMessage({
+        code: "FIELD_REQUIRED",
+        message: "End time is required"
+      })
+      .isISO8601().withMessage({
+        code: "FIELD_INVALID_FORMAT",
+        message: "End time must be a valid ISO 8601 date"
+      }),
 
     body("purpose")
-      .notEmpty().withMessage("purpose is required")
-      .isString().withMessage("purpose must be a string")
-      .isLength({ min: 3 }).withMessage("purpose must be at least 3 characters long"),
+      .notEmpty().withMessage({
+        code: "FIELD_REQUIRED",
+        message: "Purpose is required"
+      })
+      .isString().withMessage({
+        code: "FIELD_NOT_STRING",
+        message: "Purpose must be a string"
+      })
+      .isLength({ min: 3 }).withMessage({
+        code: "FIELD_TOO_SHORT",
+        message: "Purpose must be at least 3 characters long"
+      }),
   ],
   validateRequest,
   createBooking
@@ -66,64 +79,53 @@ router.put(
   requireAuth,
   [
     param("id")
-      .notEmpty().withMessage("Booking ID is required")
-      .isInt({ min: 1 }).withMessage("Booking ID must be a positive integer")
-      .bail()
-      .custom(async (bookingId, { req }) => {
-        const booking = await prisma.bookingHistory.findFirst({
-          where: {
-            id: Number(bookingId),
-            userId: req.user!.id,
-          },
-          select: { id: true },
-        });
-
-        if (!booking) {
-          throw new Error("Booking not found");
-        }
-
-        return true;
+      .notEmpty().withMessage({
+        code: "FIELD_REQUIRED",
+        message: "Booking ID is required"
+      })
+      .isInt({ min: 1 }).withMessage({
+        code: "FIELD_NOT_INTEGER",
+        message: "Booking ID must be a positive integer"
       }),
 
     body("name")
       .optional()
-      .isString().withMessage("name must be a string"),
+      .isString().withMessage({
+        code: "FIELD_NOT_STRING",
+        message: "Name must be a string"
+      }),
 
     body("meeting_room_id")
       .optional()
-      .isInt({ min: 1 }).withMessage("meeting_room_id must be a positive integer")
-      .bail()
-      .custom(async (meetingRoomId) => {
-        const room = await prisma.meetingRoom.findUnique({
-          where: { id: Number(meetingRoomId) },
-          select: { id: true },
-        });
-
-        if (!room) {
-          throw new Error("Meeting room not found");
-        }
-
-        return true;
+      .isInt({ min: 1 }).withMessage({
+        code: "FIELD_NOT_INTEGER",
+        message: "Meeting room ID must be a positive integer"
       }),
 
     body("start_time")
       .optional()
-      .isISO8601().withMessage("start_time must be a valid ISO 8601 date"),
+      .isISO8601().withMessage({
+        code: "START_TIME_INVALID_FORMAT",
+        message: "Start time must be a valid ISO 8601 date"
+      }),
 
     body("end_time")
       .optional()
-      .isISO8601().withMessage("end_time must be a valid ISO 8601 date")
-      .custom((endTime, { req }) => {
-        if (req.body.start_time && new Date(endTime) <= new Date(req.body.start_time)) {
-          throw new Error("end_time must be greater than start_time");
-        }
-        return true;
+      .isISO8601().withMessage({
+        code: "END_TIME_INVALID_FORMAT",
+        message: "End time must be a valid ISO 8601 date"
       }),
 
     body("purpose")
       .optional()
-      .isString().withMessage("purpose must be a string")
-      .isLength({ min: 3 }).withMessage("purpose must be at least 3 characters long"),
+      .isString().withMessage({
+        code: "PURPOSE_NOT_STRING",
+        message: "Purpose must be a string"
+      })
+      .isLength({ min: 3 }).withMessage({
+        code: "PURPOSE_TOO_SHORT",
+        message: "Purpose must be at least 3 characters long"
+      }),
   ],
   validateRequest,
   updateBooking
@@ -136,23 +138,6 @@ router.delete(
     param("id")
       .notEmpty().withMessage("Booking ID is required")
       .isInt({ min: 1 }).withMessage("Booking ID must be a positive integer")
-      .bail()
-      .custom(async (bookingId, { req }) => {
-        const room = await prisma.bookingHistory.findFirst({
-          where: { 
-            id: Number(bookingId),
-            userId: req.user.id, 
-          },
-          select: { id: true },
-        });
-
-        if (!room) {
-          throw new Error("Booking not found");
-        }
-
-        return true;
-      }),
-      
   ],
   validateRequest,
   deleteBooking

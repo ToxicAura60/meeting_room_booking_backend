@@ -17,12 +17,14 @@ export const createMeetingRoom = async (req: Request, res: Response) => {
   } catch (error) {
     return res.status(500).json({
       status: "error",
-      message: "Internal server error",
+      code: "DB_CREATE_FAILED",
+      message: "An unexpected error occured",
     });
   }
 
   return res.status(201).json({
     status: "success",
+    code: "MEETING_ROOM_CREATED",
     message: "Meeting room created successfully"
   })
 }
@@ -45,38 +47,17 @@ export const listMeetingRooms = async (_req: Request, res: Response) => {
   } catch (error) {
     return res.status(500).json({
       status: "error",
-      message: "Internal server error",
+      code: "DB_QUERY_FAILED",
+      message: "An unexpected error occured",
     });
   }
 
   return res.json({
     status: "success",
+    code: "MEETING_ROOM_LISTED",
     data: meetingRooms,
   });
 };
-
-
-export const deleteMeetingRoom = async (req: Request, res: Response) => {
-  const { id } = req.params
-
-  try {
-    await prisma.meetingRoom.delete({
-      where: {
-        id: Number(id),
-      },
-    })
-  } catch (error) {
-    return res.status(500).json({
-      status: "error",
-      message: "Internal server error"
-    });
-  }
-
-  return res.json({
-    status: "success",
-    message: "Meeting room deleted successfully"
-  });
-}
 
 export const updateMeetingRoom = async (req: Request, res: Response) => {
   const { id } = req.params
@@ -97,7 +78,8 @@ export const updateMeetingRoom = async (req: Request, res: Response) => {
   } catch (error) {
     return res.status(500).json({
       status: "error",
-      message: "Internal server error"
+      code: "DB_QUERY_FAILED",
+      message: "An unexpected error occured"
     });
   }
 
@@ -111,11 +93,10 @@ export const updateMeetingRoom = async (req: Request, res: Response) => {
 
  
   if (openMinutes >= closeMinutes) {
-    return res.status(422).json({
+    return res.status(400).json({
       status: "error",
-      errors: {
-        open_time: ["open_time must be lower than close_time"],
-      }
+      code: "MEETING_ROOM_OPEN_TIME_GREATER_THAN_CLOSE_TIME",
+      message: "open_time must be lower than close_time"
     });
   }
 
@@ -133,11 +114,40 @@ export const updateMeetingRoom = async (req: Request, res: Response) => {
   } catch (error) {
     return res.status(500).json({
       status: "error",
+      code: "DB_UPDATE_FAILED",
       message: "Internal server error"
     });
   }
+  
   return res.json({
     status: "success",
+    code: "MEETING_ROOM_UPDATED",
     message: "Meeting room updated successfully",
   })
 }
+
+
+export const deleteMeetingRoom = async (req: Request, res: Response) => {
+  const { id } = req.params
+
+  try {
+    await prisma.meetingRoom.delete({
+      where: {
+        id: Number(id),
+      },
+    })
+  } catch (error) {
+    return res.status(500).json({
+      status: "error",
+      code: "DB_DELETE_FAILED",
+      message: "An unexpected error occured"
+    });
+  }
+
+  return res.json({
+    status: "success",
+    code: "MEETING_ROOM_DELETED",
+    message: "Meeting room deleted successfully"
+  });
+}
+
